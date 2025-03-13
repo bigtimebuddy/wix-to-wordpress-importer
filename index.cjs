@@ -51,9 +51,10 @@ async function fetchBlogData() {
       process.stdout.write(
         `Processing URL ${url.replace(WIX_SITE_URL, "")} ... `
       );
+      const hash = md5(url);
       // Cache the file system to keep from re-downloading the same file
       // and avoiding being blocked by the server
-      const cachePost = path.resolve(__dirname, `.cache/${md5(url)}.html`);
+      const cachePost = path.resolve(__dirname, `.cache/${hash}.html`);
       let data = "";
       // Check if the file exists in the cache
       if (fs.existsSync(cachePost)) {
@@ -79,6 +80,7 @@ async function fetchBlogData() {
       const postContent = $('[data-id="content-viewer"]').html();
       const postName = url.split("/").pop();
       posts.push({
+        hash,
         name: postName,
         title: removeNBSP(postTitleText),
         author: postAuthorText,
@@ -214,35 +216,43 @@ async function saveToFile(posts, attachments) {
   });
 
   // Add posts to the XML
-  posts.forEach((post) => {
-    const item = channel.ele("item");
-    item.ele("title", {}, post.title);
-    item.ele("link", {}, post.url);
-    item.ele("pubDate", {}, new Date(post.date).toUTCString());
-    item.ele("dc:creator", {}, post.author);
-    item.ele("description", {}, post.description);
-    item.ele("content:encoded", {}, post.content);
-    item.ele("excerpt:encoded", {}, post.description);
-    item.ele("wp:post_id", {}, "0");
-    item.ele("wp:post_date", {}, post.post_date);
-    item.ele("wp:post_date_gmt", {}, new Date(post.date).toISOString());
-    item.ele("wp:comment_status", {}, "open");
-    item.ele("wp:ping_status", {}, "open");
-    item.ele("wp:post_name", {}, post.name);
-    item.ele("wp:status", {}, "publish");
-    item.ele("wp:post_parent", {}, "0");
-    item.ele("wp:menu_order", {}, "0");
-    item.ele("wp:post_type", {}, "post");
-    item.ele("wp:post_password", {}, "");
-    item.ele("wp:is_sticky", {}, "0");
+  posts
+    .filter((post) => {
+      const valid = post.date && post.title && post.content;
+      if (!valid) {
+        console.error("Error Invalid post:", post);
+      }
+      return valid;
+    })
+    .forEach((post) => {
+      const item = channel.ele("item");
+      item.ele("title", {}, post.title);
+      item.ele("link", {}, post.url);
+      item.ele("pubDate", {}, new Date(post.date).toUTCString());
+      item.ele("dc:creator", {}, post.author);
+      item.ele("description", {}, post.description);
+      item.ele("content:encoded", {}, post.content);
+      item.ele("excerpt:encoded", {}, post.description);
+      item.ele("wp:post_id", {}, "0");
+      item.ele("wp:post_date", {}, post.date);
+      item.ele("wp:post_date_gmt", {}, new Date(post.date).toISOString());
+      item.ele("wp:comment_status", {}, "open");
+      item.ele("wp:ping_status", {}, "open");
+      item.ele("wp:post_name", {}, post.name);
+      item.ele("wp:status", {}, "publish");
+      item.ele("wp:post_parent", {}, "0");
+      item.ele("wp:menu_order", {}, "0");
+      item.ele("wp:post_type", {}, "post");
+      item.ele("wp:post_password", {}, "");
+      item.ele("wp:is_sticky", {}, "0");
 
-    // Add post thumbnail as a custom field
-    if (post.thumbnail) {
-      const postmeta = item.ele("wp:postmeta");
-      postmeta.ele("wp:meta_key", {}, "_thumbnail_id");
-      postmeta.ele("wp:meta_value", {}, post.thumbnail);
-    }
-  });
+      // Add post thumbnail as a custom field
+      if (post.thumbnail) {
+        const postmeta = item.ele("wp:postmeta");
+        postmeta.ele("wp:meta_key", {}, "_thumbnail_id");
+        postmeta.ele("wp:meta_value", {}, post.thumbnail);
+      }
+    });
 
   // Convert the XML object to a string
   const xmlString = rss.end({ pretty: true });
