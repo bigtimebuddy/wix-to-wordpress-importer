@@ -1,0 +1,24 @@
+{
+  "name": "wix-to-wordpress-importer",
+  "version": "1.0.0",
+  "main": "index.cjs",
+  "scripts": {
+    "start": "node .",
+    "format": "prettier --write ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "axios": "^1.8.3",
+    "cheerio": "^1.0.0",
+    "sanitize-html": "^2.14.0",
+    "xml2js": "^0.6.2",
+    "xmlbuilder": "^15.1.1"
+  },
+  "devDependencies": {
+    "@types/sanitize-html": "^2.13.0",
+    "prettier": "^3.5.3"
+  }
+}
