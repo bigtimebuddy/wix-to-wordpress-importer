@@ -24,7 +24,7 @@ function md5(input) {
 /** Get all the blog posts URLs from the sitemap Wix publishes */
 async function getBlogPostsUrls() {
   let data = "";
-  const cacheSitemap = path.resolve(__dirname, ".cache/blog-posts-sitemap.xml");
+  const cacheSitemap = path.resolve(__dirname, "blog-posts-sitemap.xml");
   if (fs.existsSync(cacheSitemap)) {
     data = await fs.promises.readFile(cacheSitemap, "utf-8");
   } else {
@@ -49,7 +49,7 @@ async function fetchBlogData() {
     try {
       current++;
       process.stdout.write(
-        `Processing URL ${url.replace(WIX_SITE_URL, "")} ... `,
+        `Processing URL ${url.replace(WIX_SITE_URL, "")} ... `
       );
       // Cache the file system to keep from re-downloading the same file
       // and avoiding being blocked by the server
@@ -67,14 +67,14 @@ async function fetchBlogData() {
       const $ = cheerio.load(data);
       const postThumbnailUrl = $('meta[property="og:image"]').attr("content");
       const postDescriptionText = $('meta[property="og:description"]').attr(
-        "content",
+        "content"
       );
       const postTitleText = $('meta[property="og:title"]').attr("content");
       const postAuthorText = $('meta[property="article:author"]').attr(
-        "content",
+        "content"
       );
       const postDateText = $('meta[property="article:published_time"]').attr(
-        "content",
+        "content"
       );
       const postContent = $('[data-id="content-viewer"]').html();
       const postName = URL.split("/").pop();
@@ -90,10 +90,7 @@ async function fetchBlogData() {
       });
       process.stdout.write(`done! (${Math.round((current / total) * 100)}%)\n`);
     } catch (error) {
-      console.error(
-        `Error processing URL ${url}: ${error.message}!`,
-        error.stack,
-      );
+      console.error(`Error processing URL ${url}: ${error.message}!`);
     }
   }
   return { posts, attachments };
