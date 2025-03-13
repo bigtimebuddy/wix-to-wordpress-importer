@@ -77,7 +77,7 @@ async function fetchBlogData() {
         "content"
       );
       const postContent = $('[data-id="content-viewer"]').html();
-      const postName = URL.split("/").pop();
+      const postName = url.split("/").pop();
       posts.push({
         name: postName,
         title: removeNBSP(postTitleText),
@@ -90,7 +90,10 @@ async function fetchBlogData() {
       });
       process.stdout.write(`done! (${Math.round((current / total) * 100)}%)\n`);
     } catch (error) {
-      console.error(`Error processing URL ${url}: ${error.message}!`);
+      console.error(
+        `Error processing URL ${url}: ${error.message}!`,
+        error.stack
+      );
     }
   }
   return { posts, attachments };
@@ -125,7 +128,7 @@ function cleanSrc(img, attachments) {
 
 /** Remove nobreaking space characters */
 function removeNBSP(content) {
-  return content.replace(/\u00A0/g, " ");
+  return content?.replace(/\u00A0/g, " ") ?? "";
 }
 
 /** Sanitize the HTML from WIX, remove attributes and unnecessary tags */
