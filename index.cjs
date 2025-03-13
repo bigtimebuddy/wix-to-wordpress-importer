@@ -7,7 +7,7 @@ const cheerio = require("cheerio");
 const xmlbuilder = require("xmlbuilder");
 const sanitizeHtml = require("sanitize-html");
 
-const WIX_SITE_URL = "https://bigtimebuddy.wixstudio.com/blog-import";
+const WIX_SITE_URL = "https://bigtimebuddy.wixstudio.com/fszs-blog";
 const UPLOAD_URL = "https://fszs.org/wp-content/uploads/";
 
 function sleep(ms = 1000) {
