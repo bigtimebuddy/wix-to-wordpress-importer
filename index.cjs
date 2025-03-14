@@ -6,9 +6,11 @@ const xml2js = require("xml2js");
 const cheerio = require("cheerio");
 const xmlbuilder = require("xmlbuilder");
 const sanitizeHtml = require("sanitize-html");
+const ProgressBar = require("progress");
 
 const WIX_SITE_URL = "https://bigtimebuddy.wixstudio.com/fszs-blog";
 const UPLOAD_URL = "https://fszs.org/wp-content/uploads/";
+const BATCH_SIZE = 50;
 
 function sleep(ms = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,24 +35,30 @@ async function getBlogPostsUrls() {
     await fs.promises.writeFile(cacheSitemap, data, "utf-8");
   }
   const raw = await xml2js.parseStringPromise(data);
-  const blogUrls = raw.urlset.url.map((url) => url.loc[0]);
-  console.log(blogUrls.length, "posts");
-  return blogUrls;
+  return raw.urlset.url.map((url) => url.loc[0]);
 }
 
 /** Fetch the blog data from the Wix site */
-async function fetchBlogData() {
-  const blogUrls = await getBlogPostsUrls();
+async function main() {
+  const urls = await getBlogPostsUrls();
+  const progress = new ProgressBar("Processing [:bar] :percent \n:url", {
+    total: urls.length,
+    width: 50,
+  });
+  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
+    const result = await fetchBatch(urls.slice(i, i + BATCH_SIZE), progress);
+    const output = `wordpress-import-${(i / BATCH_SIZE).toString().padStart(2, "0")}.xml`;
+    await saveToFile(result, output);
+  }
+}
+
+/** Fetch a batch of urls */
+async function fetchBatch(urls, progress) {
   const posts = [];
   const attachments = new Map();
-  const total = blogUrls.length;
-  let current = 0;
-  for (const url of blogUrls) {
+  for (const url of urls) {
+    progress.tick({ url: url.replace(WIX_SITE_URL, "") });
     try {
-      current++;
-      process.stdout.write(
-        `Processing URL ${url.replace(WIX_SITE_URL, "")} ... `
-      );
       const hash = md5(url);
       // Cache the file system to keep from re-downloading the same file
       // and avoiding being blocked by the server
@@ -68,14 +76,14 @@ async function fetchBlogData() {
       const $ = cheerio.load(data);
       const postThumbnailUrl = $('meta[property="og:image"]').attr("content");
       const postDescriptionText = $('meta[property="og:description"]').attr(
-        "content"
+        "content",
       );
       const postTitleText = $('meta[property="og:title"]').attr("content");
       const postAuthorText = $('meta[property="article:author"]').attr(
-        "content"
+        "content",
       );
       const postDateText = $('meta[property="article:published_time"]').attr(
-        "content"
+        "content",
       );
       const postContent = $('[data-id="content-viewer"]').html();
       const postName = url.split("/").pop();
@@ -90,11 +98,10 @@ async function fetchBlogData() {
         description: removeNBSP(postDescriptionText),
         url,
       });
-      process.stdout.write(`done! (${Math.round((current / total) * 100)}%)\n`);
     } catch (error) {
       console.error(
         `Error processing URL ${url}: ${error.message}!`,
-        error.stack
+        error.stack,
       );
     }
   }
@@ -173,7 +180,7 @@ function cleanHTML(content, attachments) {
  * Output the file to the WordPress eXendeded RSS
  * @see https://ipggi.wordpress.com/2011/03/16/the-wordpress-extended-rss-wxr-exportimport-xml-document-format-decoded-and-explained/
  */
-async function saveToFile(posts, attachments) {
+async function saveToFile({ posts, attachments }, outputFile) {
   // Create the XML structure
   const rss = xmlbuilder
     .create("rss", { version: "1.0", encoding: "UTF-8" })
@@ -258,12 +265,7 @@ async function saveToFile(posts, attachments) {
   const xmlString = rss.end({ pretty: true });
 
   // Write the XML string to a file
-  return fs.promises.writeFile("wordpress-import.xml", xmlString);
+  return fs.promises.writeFile(outputFile, xmlString);
 }
 
-(async () => {
-  const { posts, attachments } = await fetchBlogData();
-  if (posts.length > 0) {
-    await saveToFile(posts, attachments);
-  }
-})();
+main();

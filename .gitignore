@@ -1,5 +1,4 @@
 node_modules
 .DS_Store
 .cache
-blog-posts-sitemap.xml
-wordpress-import.xml
+*.xml
