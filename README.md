@@ -11,10 +11,10 @@ In order to import the media files and retain image links correctly into WordPre
 Install external dependencies.
 
 ```bash
-npm install
+npm install -g wix-to-wordpress-importer
 ```
 
-Create configuration and save .config.json
+Create configuration and save to JSON file
 
 ```json
 {
@@ -36,5 +36,5 @@ If you're WordPress site is on a shared host, there can be timeouts imposed for 
 Run the importer.
 
 ```bash
-npm start
+wix-to-wordpress-importer -c config.json
 ```
