@@ -1,21 +1,25 @@
-const path = require('node:path');
-const fs = require('fs-extra');
-const crypto = require('node:crypto');
-const axios = require('axios');
-const xml2js = require('xml2js');
-const cheerio = require('cheerio');
-const xmlbuilder = require('xmlbuilder');
-const sanitizeHtml = require('sanitize-html');
-const ProgressBar = require('progress');
+import path from 'node:path';
+import fs from 'fs-extra';
+import crypto from 'node:crypto';
+import axios from 'axios';
+import xml2js from 'xml2js';
+import * as cheerio from 'cheerio';
+import xmlbuilder from 'xmlbuilder';
+import sanitizeHtml from 'sanitize-html';
+import ProgressBar from 'progress';
 
-let config = {};
+/** Cache directory */
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const CACHE_DIR = path.resolve(__dirname, '.cache');
+const CONFIG_FILE = path.resolve(__dirname, '.config.json');
 
+/** Placeholder for the loaded configuration */
+let config = null;
+
+/** Sleep for a number of milliseconds */
 function sleep(ms = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
-
-/** Cache directory */
-const CACHE_DIR = path.resolve(__dirname, '.cache');
 
 /** Used for caching file */
 function md5(input) {
@@ -49,7 +53,7 @@ const ErrorMessages = {
 
 /** Fetch the blog data from the Wix site */
 async function main() {
-  if (!(await fs.pathExists('.config.json'))) {
+  if (!(await fs.pathExists(CONFIG_FILE))) {
     console.error(ErrorMessages.MissingConfig);
     process.exit(1);
   }
@@ -59,7 +63,7 @@ async function main() {
       source: '',
       destination: '',
     },
-    await fs.readJson('.config.json'),
+    await fs.readJson(CONFIG_FILE),
   );
   if (!config.source || !config.destination) {
     console.error(ErrorMessages.InvalidSource);

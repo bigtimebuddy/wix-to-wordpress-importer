@@ -1,7 +1,8 @@
 {
   "name": "wix-to-wordpress-importer",
   "version": "1.0.0",
-  "main": "index.cjs",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
     "prestart": "rimraf wordpress-import-*.xml",
     "start": "node .",
