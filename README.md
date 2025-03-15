@@ -2,19 +2,13 @@
 
 This tool downloads blog posts from Wix site and saves them as WordPress eXtended RSS XML format. This allows them to be imported into WordPress using [WordPress Importer plugin](https://wordpress.org/plugins/wordpress-importer/). It handles posts and any images to import a clean post.
 
-## Requirements
+## WordPress Requirements
 
-In order to import the media files and retain image links correctly into WordPress and retain the pathing correctly, you need to ensure `Organize my uploads into month- and year-based folders` in WordPress' `Settings` > `Media` is disabled.
+In order to import the media files and retain image links correctly into WordPress and retain the pathing correctly, you need to ensure `Organize my uploads into month- and year-based folders` in WordPress' `Settings` > `Media` is disabled. This can be re-enabled after you have imported your posts.
 
-## Running
+## Configuration
 
-Install external dependencies.
-
-```bash
-npm install -g wix-to-wordpress-importer
-```
-
-Create configuration and save to JSON file
+Create configuration and save to JSON file. For example:
 
 ```json
 {
@@ -33,8 +27,14 @@ If you're WordPress site is on a shared host, there can be timeouts imposed for 
 }
 ```
 
-Run the importer.
+## Running
+
+Run the importer using `npx`:
 
 ```bash
-wix-to-wordpress-importer -c config.json
+npx wix-to-wordpress-importer -c config.json
 ```
+
+## License
+
+MIT License.
