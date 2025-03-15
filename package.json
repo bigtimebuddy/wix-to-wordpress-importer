@@ -14,6 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "ci:test": "npm run format && npm run lint",
+    "preversion": "npm run ci:test",
     "postversion": "git push && git push --tags"
   },
   "files": [
