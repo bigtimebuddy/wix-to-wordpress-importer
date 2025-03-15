@@ -19,7 +19,21 @@
   "files": [
     "lib"
   ],
-  "keywords": [],
+  "keywords": [
+    "wordpress",
+    "wix",
+    "wxr",
+    "import",
+    "cli"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bigtimebuddy/wix-to-wordpress-importer.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bigtimebuddy/wix-to-wordpress-importer/issues"
+  },
+  "homepage": "https://github.com/bigtimebuddy/wix-to-wordpress-importer#readme",
   "author": "Matt Karl <hello@mattkarl.com>",
   "license": "MIT",
   "dependencies": {
