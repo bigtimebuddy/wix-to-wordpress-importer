@@ -1,5 +1,5 @@
 const path = require('node:path');
-const fs = require('node:fs');
+const fs = require('fs-extra');
 const crypto = require('node:crypto');
 const axios = require('axios');
 const xml2js = require('xml2js');
@@ -8,13 +8,14 @@ const xmlbuilder = require('xmlbuilder');
 const sanitizeHtml = require('sanitize-html');
 const ProgressBar = require('progress');
 
-const WIX_SITE_URL = 'https://bigtimebuddy.wixstudio.com/fszs-blog';
-const UPLOAD_URL = 'http://fszs.org/wp-content/uploads/';
-const BATCH_SIZE = 25;
+let config = {};
 
 function sleep(ms = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/** Cache directory */
+const CACHE_DIR = path.resolve(__dirname, '.cache');
 
 /** Used for caching file */
 function md5(input) {
@@ -26,28 +27,61 @@ function md5(input) {
 /** Get all the blog posts URLs from the sitemap Wix publishes */
 async function getBlogPostsUrls() {
   let data = '';
-  const cacheSitemap = path.resolve(__dirname, 'blog-posts-sitemap.xml');
-  if (fs.existsSync(cacheSitemap)) {
-    data = await fs.promises.readFile(cacheSitemap, 'utf-8');
+  await fs.ensureDir(CACHE_DIR);
+  const cacheSitemap = path.join(CACHE_DIR, 'blog-posts-sitemap.xml');
+  if (await fs.pathExists(cacheSitemap)) {
+    data = await fs.readFile(cacheSitemap, 'utf-8');
   } else {
-    const url = `${WIX_SITE_URL}/blog-posts-sitemap.xml`;
+    const url = `${config.source}/blog-posts-sitemap.xml`;
     data = (await axios.get(url)).data;
-    await fs.promises.writeFile(cacheSitemap, data, 'utf-8');
+    await fs.writeFile(cacheSitemap, data, 'utf-8');
   }
   const raw = await xml2js.parseStringPromise(data);
   return raw.urlset.url.map((url) => url.loc[0]);
 }
 
+/** Error messages to show */
+const ErrorMessages = {
+  InvalidSource: 'ERROR: Missing source or destination in .config.json!',
+  InvalidURL: 'ERROR: Invalid source or destination URL in .config.json!',
+  MissingConfig: 'ERROR: Missing .config.json file!',
+};
+
 /** Fetch the blog data from the Wix site */
 async function main() {
+  if (!(await fs.pathExists('.config.json'))) {
+    console.error(ErrorMessages.MissingConfig);
+    process.exit(1);
+  }
+  config = Object.assign(
+    {
+      batchSize: Number.MAX_SAFE_INTEGER,
+      source: '',
+      destination: '',
+    },
+    await fs.readJson('.config.json'),
+  );
+  if (!config.source || !config.destination) {
+    console.error(ErrorMessages.InvalidSource);
+    process.exit(1);
+  }
+  const urlRegex =
+    /^(https?:\/\/)?([\da-z\.-]+)\.([a-z\.]{2,6})([\/\w \.-]*)*\/?$/;
+  if (!urlRegex.test(config.source) || !urlRegex.test(config.destination)) {
+    console.error(ErrorMessages.InvalidURL);
+    process.exit(1);
+  }
   const urls = await getBlogPostsUrls();
   const progress = new ProgressBar('Processing [:bar] :percent \n:url', {
     total: urls.length,
     width: 50,
   });
-  for (let i = 0; i < urls.length; i += BATCH_SIZE) {
-    const result = await fetchBatch(urls.slice(i, i + BATCH_SIZE), progress);
-    const output = `wordpress-import-${(i / BATCH_SIZE).toString().padStart(2, '0')}.xml`;
+  for (let i = 0; i < urls.length; i += config.batchSize) {
+    const result = await fetchBatch(
+      urls.slice(i, i + config.batchSize),
+      progress,
+    );
+    const output = `wordpress-import-${(i / config.batchSize).toString().padStart(2, '0')}.xml`;
     await saveToFile(result, output);
   }
 }
@@ -57,21 +91,21 @@ async function fetchBatch(urls, progress) {
   const posts = [];
   const attachments = new Map();
   for (const url of urls) {
-    progress.tick({ url: url.replace(WIX_SITE_URL, '') });
+    progress.tick({ url: url.replace(config.source, '') });
     try {
       const hash = md5(url);
       // Cache the file system to keep from re-downloading the same file
       // and avoiding being blocked by the server
-      const cachePost = path.resolve(__dirname, `.cache/${hash}.html`);
+      const cachePost = path.join(CACHE_DIR, `${hash}.html`);
       let data = '';
       // Check if the file exists in the cache
-      if (fs.existsSync(cachePost)) {
-        data = await fs.promises.readFile(cachePost, 'utf-8');
+      if (await fs.pathExists(cachePost)) {
+        data = await fs.readFile(cachePost, 'utf-8');
       } else {
         // Sleep for a second to avoid being blocked by the server
         await sleep();
         data = (await axios.get(url)).data;
-        await fs.promises.writeFile(cachePost, data);
+        await fs.writeFile(cachePost, data);
       }
       const $ = cheerio.load(data);
       const postThumbnailUrl = $('meta[property="og:image"]').attr('content');
@@ -125,7 +159,7 @@ function cleanSrc(img, attachments) {
       .split('/')
       .pop()
       .replace(/[^\w.-]/g, '');
-    const src = UPLOAD_URL + filename;
+    const src = config.destination + '/wp-content/uploads/' + filename;
     const name = path.basename(filename, path.extname(filename));
     const attachment = {
       id: attachmentId++,
@@ -241,12 +275,12 @@ async function saveToFile({ posts, attachments }, outputFile) {
     .att('xmlns:wp', 'http://wordpress.org/export/1.2/');
 
   const channel = rss.ele('channel');
-  channel.ele('title', {}, 'FSZS');
-  channel.ele('link', {}, 'https://fszs.org');
-  channel.ele('description', {}, 'Teachings from original FSZS site');
+  channel.ele('title', {}, '');
+  channel.ele('link', {}, config.destination);
+  channel.ele('description', {}, '');
   channel.ele('wp:wxr_version', {}, '1.2');
-  channel.ele('wp:base_site_url', {}, 'https://fszs.org');
-  channel.ele('wp:base_blog_url', {}, 'https://fszs.org');
+  channel.ele('wp:base_site_url', {}, config.destination);
+  channel.ele('wp:base_blog_url', {}, config.destination);
 
   attachments.forEach((attachment) => {
     const item = channel.ele('item');
@@ -314,7 +348,7 @@ async function saveToFile({ posts, attachments }, outputFile) {
   const xmlString = rss.end({ pretty: true });
 
   // Write the XML string to a file
-  return fs.promises.writeFile(outputFile, xmlString);
+  return fs.writeFile(outputFile, xmlString);
 }
 
 main();
