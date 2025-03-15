@@ -9,8 +9,8 @@ const sanitizeHtml = require("sanitize-html");
 const ProgressBar = require("progress");
 
 const WIX_SITE_URL = "https://bigtimebuddy.wixstudio.com/fszs-blog";
-const UPLOAD_URL = "https://fszs.org/wp-content/uploads/";
-const BATCH_SIZE = 50;
+const UPLOAD_URL = "http://fszs.org/wp-content/uploads/";
+const BATCH_SIZE = 10;
 
 function sleep(ms = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -87,6 +87,11 @@ async function fetchBatch(urls, progress) {
       );
       const postContent = $('[data-id="content-viewer"]').html();
       const postName = url.split("/").pop();
+      const content = removeNBSP(cleanHTML(postContent, attachments));
+      // Skip posts without content
+      if (!content.trim()) {
+        continue;
+      }
       posts.push({
         hash,
         name: postName,
@@ -94,7 +99,7 @@ async function fetchBatch(urls, progress) {
         author: postAuthorText,
         date: postDateText,
         thumbnail: cleanSrc(postThumbnailUrl, attachments)?.id,
-        content: removeNBSP(cleanHTML(postContent, attachments)),
+        content,
         description: removeNBSP(postDescriptionText),
         url,
       });
@@ -111,7 +116,7 @@ async function fetchBatch(urls, progress) {
 let attachmentId = 1;
 
 function cleanSrc(img, attachments) {
-  const url = img?.replace(/\.(avif|webp|jpeg|png)\/.+/, ".$1");
+  const url = img?.replace(/\.(avif|webp|jpe?g|png)\/.+/, ".$1");
   if (url) {
     if (attachments.has(url)) {
       return attachments.get(url);
@@ -142,38 +147,82 @@ function removeNBSP(content) {
 
 /** Sanitize the HTML from WIX, remove attributes and unnecessary tags */
 function cleanHTML(content, attachments) {
-  return sanitizeHtml(content, {
-    allowedTags: [
-      "p",
-      "a",
-      "img",
-      "strong",
-      "b",
-      "u",
-      "i",
-      "em",
-      "ul",
-      "ol",
-      "li",
-    ],
-    allowedAttributes: {
-      img: ["src", "alt"],
-      a: ["href"],
-    },
-    disallowedTagsMode: "discard",
-    transformTags: {
-      img: (tagName, attribs) => {
-        return {
-          tagName,
-          attribs: {
-            src: cleanSrc(attribs.src, attachments)?.src,
-            decoding: "async",
-            fetchpriority: "high",
-          },
-        };
+  return createWordPressBlocks(
+    sanitizeHtml(content, {
+      allowedTags: [
+        "p",
+        "a",
+        "img",
+        "strong",
+        "b",
+        "u",
+        "i",
+        "em",
+        "ul",
+        "ol",
+        "li",
+      ],
+      allowedAttributes: {
+        img: ["src", "alt", "height", "width"],
+        a: ["href"],
       },
-    },
-  });
+      disallowedTagsMode: "discard",
+      exclusiveFilter: (frame) => {
+        return frame.tag === "p" && !frame.text.trim();
+      },
+      transformTags: {
+        ol: () => {
+          return {
+            tagName: "ul",
+            attribs: {
+              class: "wp-block-list",
+            },
+          };
+        },
+        img: (tagName, attribs) => {
+          const src = cleanSrc(attribs.src, attachments)?.src;
+          return {
+            tagName,
+            attribs: {
+              ...attribs,
+              src,
+              decoding: "async",
+              fetchpriority: "high",
+            },
+          };
+        },
+        ul: (tagName) => {
+          return {
+            tagName,
+            attribs: {
+              class: "wp-block-list",
+            },
+          };
+        },
+      },
+    }),
+  );
+}
+
+/** Lets take the sanitized HTML and convert it into wordpress blocks */
+function createWordPressBlocks(content) {
+  return (
+    content
+      // Remove WIX wrapping list items with paragraphs
+      .replace(/<li>(.*?)<\/li>/gs, (match) => match.replace(/<\/?p>/g, ""))
+      // Convert images into figure blocks
+      .replace(
+        /<img[^>]+>/g,
+        '\n\n<!-- wp:image -->\n<figure class="wp-block-image size-full">$&</figure>\n<!-- /wp:image -->',
+      )
+      // Convert other block elements
+      .replace(/<(ul|ol)>/g, "\n\n<!-- wp:list -->\n$&")
+      .replace(/<\/(ul|ol)>/g, "$&\n<!-- /wp:list -->")
+      .replace(/<li>/g, "\n\n<!-- wp:list-item -->\n<li>")
+      .replace(/<\/li>/g, "</li>\n<!-- /wp:list-item -->")
+      .replace(/<p>/g, "\n\n<!-- wp:paragraph -->\n<p>")
+      .replace(/<\/p>/g, "</p>\n<!-- /wp:paragraph -->")
+  );
 }
 
 /**
