@@ -10,7 +10,7 @@ const ProgressBar = require("progress");
 
 const WIX_SITE_URL = "https://bigtimebuddy.wixstudio.com/fszs-blog";
 const UPLOAD_URL = "http://fszs.org/wp-content/uploads/";
-const BATCH_SIZE = 10;
+const BATCH_SIZE = 25;
 
 function sleep(ms = 1000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
