@@ -23,5 +23,9 @@
     "@types/sanitize-html": "^2.13.0",
     "prettier": "^3.5.3",
     "rimraf": "^5.0.10"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true
   }
 }
