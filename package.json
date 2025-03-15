@@ -7,9 +7,14 @@
   "scripts": {
     "pretest": "rimraf wordpress-import-*.xml",
     "test": "node lib/index.js --config .config.json",
-    "format": "prettier --write .",
+    "format": "prettier --check .",
+    "format:fix": "prettier --write .",
     "prepack": "clean-package",
-    "postpack": "clean-package restore"
+    "postpack": "clean-package restore",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "ci:test": "npm run format && npm run lint",
+    "postversion": "git push && git push --tags"
   },
   "files": [
     "lib"
@@ -29,8 +34,11 @@
     "xmlbuilder": "^15.1.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.22.0",
     "@types/sanitize-html": "^2.13.0",
     "clean-package": "^2.2.0",
+    "eslint": "^9.22.0",
+    "globals": "^16.0.0",
     "prettier": "^3.5.3",
     "rimraf": "^5.0.10"
   },
