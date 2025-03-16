@@ -15,7 +15,7 @@
     "lint:fix": "eslint . --fix",
     "ci:test": "npm run format && npm run lint",
     "preversion": "npm run ci:test",
-    "postversion": "git push && git push --tags"
+    "postversion": "npm publish && git push && git push --tags"
   },
   "files": [
     "lib"
