@@ -1,6 +1,6 @@
 {
   "name": "wix-to-wordpress-importer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Import Wix blog posts to WordPress",
   "bin": "lib/index.js",
   "type": "module",
